@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Sähkön Hinta</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <style>
+        html, body {
+            min-height: 100vh;
+            overflow: auto;
+            margin: 0;
+
+            font-size: xx-large;
+        }
+
+        @media screen and (max-width: 700px) {
+            html, body {
+                font-size: inherit;
+            }
+        }
+
+        body {
+            color: #444;
+            background-color: floralwhite;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        h1 {
+            line-height: 1.2;
+            font-weight: lighter;
+
+            opacity: 0;
+            transition: opacity 225ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .fade {
+            opacity: 1;
+            transition: opacity 300ms cubic-bezier(0.55, 0.085, 0.68, 0.53);
+        }
+
+        a {
+            text-decoration: none;
+            color: #947131;
+        }
+
+        a:visited {
+            color: #ab8f70;
+            text-decoration: none;
+        }
+
+    </style>
+    <script type="module">
+        function status(message) {
+            const element = document.getElementById("status");
+
+            const onTransitionEnd = function () {
+                element.removeEventListener("transitionend", onTransitionEnd);
+                element.innerText = message;
+                element.classList.add("fade");
+            };
+
+            element.removeEventListener("transitionend", onTransitionEnd);
+            element.addEventListener("transitionend", onTransitionEnd);
+            element.classList.remove("fade");
+        }
+
+        async function updateStatus() {
+            const rangeStart = new Date(Date.now() - 86400000);
+            const rangeEnd   = new Date();
+
+            const rawUrl = `https://web.fortum.fi/api/v2/spot-price-anonymous?priceListKey=77&from=${rangeStart.toISOString()}&to=${rangeEnd.toISOString()}`;
+            const proxyBypass = 'https://corsproxy.io/?' + encodeURIComponent(rawUrl);
+            const response = await fetch(proxyBypass);
+
+            if (!response.ok) {
+                status("Fortum ei suostunut vastaamaan :(");
+                return;
+            }
+
+            const json = await response.json();
+            if (json.error) throw new Error("Fortum palautti virheen: " + JSON.stringify(json));
+            if (!"series" in json) throw new Error("JSON-datan muoto oli väärä, tarvittiin `series` -kenttä: " + JSON.stringify(json));
+
+            const event = json.series.map(obj => { return {
+                startDate: Date.parse(obj.startDate),
+                value: obj.value,
+                unit: obj.unit
+            }}).filter(obj => obj.startDate < Date.now()).sort((a, b) => b.startDate - a.startDate)[0];
+
+            status(`Hinta on ${
+                (typeof Intl === "object" && !!Intl && typeof Intl.NumberFormat === "function")
+                    ? event.value.toLocaleString("fi-FI")
+                    : event.value.toLocaleString()
+            } ${event.unit}.`);
+        }
+
+        try {
+            await updateStatus();
+        } catch (error) {
+            status(`Tapahtui virhe :(`);
+            console.error("Virhetilanteen tarkat tiedot:");
+            console.error(error);
+        }
+    </script>
+</head>
+<body>
+    <h1 id="status" class="fade">Ω</h1>
+    <sub>Tiedot tulevat <a href="https://www.fortum.fi/kotiasiakkaille/sahkoa-kotiin/opas/spot-hinta#:~:text=Mit%C3%A4%20p%C3%B6rssi%C2%ADs%C3%A4hk%C3%B6%20maksaa%20nyt%3F">Fortumilta.</a></sub>
+</body>
+</html>
