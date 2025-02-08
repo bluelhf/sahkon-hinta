@@ -74,7 +74,7 @@
             const rangeEnd   = new Date();
 
             const rawUrl = `https://web.fortum.fi/api/v2/spot-price-anonymous?priceListKey=77&from=${rangeStart.toISOString()}&to=${rangeEnd.toISOString()}`;
-            const proxyBypass = 'https://corsproxy.io/?' + encodeURIComponent(rawUrl);
+            const proxyBypass = 'https://corsproxy.io/?url=' + encodeURIComponent(rawUrl);
             const response = await fetch(proxyBypass);
 
             if (!response.ok) {
